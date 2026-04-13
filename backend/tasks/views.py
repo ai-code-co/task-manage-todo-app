@@ -1,19 +1,19 @@
 from django.shortcuts import render
 
+
 # Create your views here.
-from rest_framework import viewsets
+from rest_framework import viewsets,status
 from rest_framework.response import Response
-from rest_framework import status
 from django.utils.timezone import now
 from .models import Task
 from .serializers import TaskSerializer
 from rest_framework.permissions import AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import SearchFilter
+from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.filters import OrderingFilter
 from rest_framework.pagination import PageNumberPagination
 
+from rest_framework.decorators import action
 class TaskPagination(PageNumberPagination):
     page_size = 5
     page_size_query_param = 'page_size'
@@ -78,3 +78,57 @@ class TaskViewSet(ModelViewSet):
             {"message": "Task deleted successfully"},
             status=status.HTTP_204_NO_CONTENT
         )
+    @action(detail=False, methods=['post'],url_path='upload-csv')
+    def upload_csv(self, request):
+        file = request.FILES.get('file')
+
+        
+
+        if not file:
+            return Response({'error': 'No file uploaded'}, status=status.HTTP_400_BAD_REQUEST)  
+        
+        if file.size > 2 * 1024 * 1024:
+            return Response({'error': 'File size should be less than 2MB'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not file.name.endswith('.csv'):
+            return Response({'error': 'only CSV files are allowed'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        import csv, io
+        decoded_file = file.read().decode('utf-8')
+        io_string = io.StringIO(decoded_file)
+        reader = csv.DictReader(io_string)
+
+        tasks = []
+        errors = []
+
+        for idx, row in enumerate(reader, start=1):
+
+            # skip empty rows
+            if not any(row.values()):
+                continue
+
+            serializer = self.get_serializer(data=row)
+
+            if serializer.is_valid():
+                tasks.append(Task(**serializer.validated_data))
+            else:
+                errors.append({
+                    "row": idx,
+                    "error": serializer.errors
+                })
+
+        # bulk insert
+        Task.objects.bulk_create(tasks)
+        # serializer = self.get_serializer(data=[t.__dict__ for t in tasks], many=True)
+        # serializer.is_valid(raise_exception=True)
+        # serializer.save()
+
+        # bulk_serializer = self.get_serializer(data=tasks, many=True)
+        # bulk_serializer.is_valid(raise_exception=True)
+        # bulk_serializer.save()
+        
+
+        return Response({
+            "created_count": len(tasks),
+            "errors": errors
+        }, status=status.HTTP_201_CREATED)
