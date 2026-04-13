@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task API Query Tester</title>
+    <link rel="stylesheet" href="tester.css">
+</head>
+<body>
+    <div class="shell">
+        <header class="hero">
+            <section class="panel hero-copy">
+                <p class="eyebrow">Frontend Query Tester</p>
+                <h1>Check filters, sorting, pagination, and page size from the URL bar.</h1>
+                <p class="lead">
+                    Keep Django on <code>http://127.0.0.1:8000</code> and open this page on
+                    <code>http://127.0.0.1:5500</code>. The UI keeps the active query params in the browser URL.
+                </p>
+            </section>
+
+            <aside class="panel hero-side">
+                <div class="meta-label">Backend API</div>
+                <code id="apiBaseLabel">http://127.0.0.1:8000/api/tasks/</code>
+                <p class="small">Edit query params in the URL bar, refresh, or use browser back and forward to verify state.</p>
+                <div class="actions">
+                    <button class="primary" type="button" id="refreshButton">Refresh Data</button>
+                    <button class="ghost" type="button" id="resetAllButton">Reset URL State</button>
+                </div>
+            </aside>
+        </header>
+
+        <main class="layout">
+            <section class="panel create-panel">
+                <div class="section-head">
+                    <div>
+                        <h2>Create Task</h2>
+                        <p class="small">Add sample tasks quickly for testing.</p>
+                    </div>
+                </div>
+
+                <form id="createTaskForm" class="grid two">
+                    <label class="full">
+                        <span>Title</span>
+                        <input id="createTitle" type="text" required placeholder="Prepare sprint notes">
+                    </label>
+                    <label class="full">
+                        <span>Description</span>
+                        <textarea id="createDescription" placeholder="Optional details"></textarea>
+                    </label>
+                    <label>
+                        <span>Priority</span>
+                        <select id="createPriority">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Status</span>
+                        <select id="createStatus">
+                            <option value="pending" selected>Pending</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </label>
+                    <div class="full actions">
+                        <button class="primary" type="submit">Create Task</button>
+                        <span class="small" id="createStatusLine"></span>
+                    </div>
+                </form>
+            </section>
+
+            <section class="panel filters-panel">
+                <div class="section-head">
+                    <div>
+                        <h2>Query Controls</h2>
+                        <p class="small">These values sync with the browser query string and the API request.</p>
+                    </div>
+                </div>
+
+                <form id="filtersForm" class="grid two">
+                    <label class="full">
+                        <span>Search</span>
+                        <input id="search" type="text" placeholder="Search title or description">
+                    </label>
+                    <label>
+                        <span>Status</span>
+                        <select id="statusFilter">
+                            <option value="">All</option>
+                            <option value="pending">Pending</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Priority</span>
+                        <select id="priorityFilter">
+                            <option value="">All</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Ordering</span>
+                        <select id="ordering">
+                            <option value="-created_at">Newest first</option>
+                            <option value="created_at">Oldest first</option>
+                            <option value="-updated_at">Recently updated</option>
+                            <option value="updated_at">Least recently updated</option>
+                            <option value="-priority">Priority desc</option>
+                            <option value="priority">Priority asc</option>
+                            <option value="-status">Status desc</option>
+                            <option value="status">Status asc</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Page size</span>
+                        <input id="pageSize" type="number" min="1" max="10" step="1" value="5">
+                    </label>
+                    <label>
+                        <span>Page</span>
+                        <input id="pageNumber" type="number" min="1" step="1" value="1">
+                    </label>
+                    <div class="full actions">
+                        <button class="primary" type="submit">Apply Query Params</button>
+                        <button class="ghost" type="button" id="resetFiltersButton">Reset Filters</button>
+                    </div>
+                </form>
+
+                <div class="chips" id="activeQueryChips"></div>
+            </section>
+
+            <section class="panel summary-panel">
+                <div class="section-head">
+                    <div>
+                        <h2>Verification Snapshot</h2>
+                        <p class="small">Compare browser URL, API request URL, and the response payload in one place.</p>
+                    </div>
+                </div>
+
+                <div class="stats">
+                    <div class="stat"><span>Total</span><strong id="totalCount">0</strong></div>
+                    <div class="stat"><span>Page</span><strong id="pageSummary">1 / 1</strong></div>
+                    <div class="stat"><span>Page Size</span><strong id="pageSizeSummary">5</strong></div>
+                    <div class="stat"><span>Rows</span><strong id="rowsShown">0</strong></div>
+                </div>
+
+                <div class="request-box">
+                    <div class="meta-label">Browser URL</div>
+                    <code id="browserUrlPreview"></code>
+                    <div class="meta-label">API Request URL</div>
+                    <code id="requestUrlPreview"></code>
+                    <a id="openApiLink" href="http://127.0.0.1:8000/api/tasks/" target="_blank" rel="noreferrer">Open current API request</a>
+                </div>
+            </section>
+
+            <section class="panel table-panel">
+                <div class="section-head">
+                    <div>
+                        <h2>Task Results</h2>
+                        <p class="small" id="rangeSummary">Showing 0 results</p>
+                    </div>
+                    <div class="actions">
+                        <button class="ghost" type="button" id="prevPageButton">Previous</button>
+                        <button class="ghost" type="button" id="nextPageButton">Next</button>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Task</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Created</th>
+                                <th>Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="taskTableBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="empty-state" id="emptyState">No tasks matched the current query params.</div>
+            </section>
+
+            <section class="panel response-panel">
+                <div class="section-head">
+                    <div>
+                        <h2>Raw API Response</h2>
+                        <p class="small">Helpful when you want to compare the table against exact JSON.</p>
+                    </div>
+                </div>
+                <pre id="responsePreview">{}</pre>
+            </section>
+        </main>
+    </div>
+
+    <div class="toast" id="toast" aria-live="polite"></div>
+    <script src="tester.js"></script>
+</body>
+</html>

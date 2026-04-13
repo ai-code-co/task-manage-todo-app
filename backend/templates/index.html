@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Task Manager</title>
+</head>
+<body>
+
+<div style="margin-bottom: 20px; padding: 14px; border: 1px solid #b6d7d2; background: #eef9f7; color: #18423b;">
+    For query-param testing with filters, sorting, pagination, and <code>page_size</code>, use
+    <a href="http://127.0.0.1:5500/" target="_blank" rel="noreferrer">http://127.0.0.1:5500/</a>.
+    Keep the Django API running on <code>http://127.0.0.1:8000/api/tasks/</code>.
+</div>
+
+<h2>Create Task</h2>
+<input type="text" id="title" placeholder="Title">
+<br><br>
+<textarea id="description" placeholder="Description"></textarea>
+<br><br>
+<select id="priority">
+    <option value="low">Low</option>
+    <option value="medium">Medium</option>
+    <option value="high">High</option>
+</select>
+<button onclick="createTask()">Create</button>
+<h3>Filters</h3>
+
+<input type="text" id="search" placeholder="Search by title">
+
+<select id="statusFilter">
+    <option value="">All Status</option>
+    <option value="pending">Pending</option>
+    <option value="completed">Completed</option>
+</select>
+
+<select id="priorityFilter">
+    <option value="">All Priority</option>
+    <option value="low">Low</option>
+    <option value="medium">Medium</option>
+    <option value="high">High</option>
+</select>
+
+<select id="ordering">
+    <option value="-created_at">Newest</option>
+    <option value="created_at">Oldest</option>
+    <option value="priority">Priority</option>
+</select>
+
+<button onclick="applyFilters()">Apply</button>
+<h2>Tasks List</h2>
+<ul id="taskList"></ul>
+<p>Current Page: <span id="currentPageLabel">1</span></p>
+<button id="prevButton" onclick="prevPage()">Prev</button>
+<button id="nextButton" onclick="nextPage()">Next</button>
+<div id="paginationNumbers"></div>
+
+<script>
+let totalPages = 1;
+let currentPage = 1;
+let nextUrl = null;
+let prevUrl = null;
+const PAGE_SIZE = 5;
+// const API_URL = "/api/tasks/";
+const API_URL = "http://127.0.0.1:8000/api/tasks/";
+
+function renderTask(task) {
+    const li = document.createElement("li");
+    li.innerHTML = `
+        <b>${task.title}</b>
+        ${task.description ? `<br>${task.description}` : ""}
+        <br>
+        (${task.priority}) - ${task.status}
+        <button onclick="deleteTask(${task.id})">Delete</button>
+        <button onclick="markComplete(${task.id})">Complete</button>
+    `;
+    return li;
+}
+
+function getTasks(page = 1) {
+    currentPage = Number(page);
+
+    const search = document.getElementById("search").value;
+    const status = document.getElementById("statusFilter").value;
+    const priority = document.getElementById("priorityFilter").value;
+    const ordering = document.getElementById("ordering").value;
+
+    const params = new URLSearchParams({
+        page: page,
+        search: search,
+        status: status,
+        priority: priority,
+        ordering: ordering
+    });
+
+    fetch(`${API_URL}?${params}`)
+        .then(res => res.json())
+        .then(data => {
+            nextUrl = data.next;
+            prevUrl = data.previous;
+            totalPages = Math.ceil((data.count || 0) / PAGE_SIZE) || 1;
+            renderPaginationNumbers();
+
+            const list = document.getElementById("taskList");
+            list.innerHTML = "";
+
+            const tasks = data.results || data;
+
+            if (tasks.length === 0) {
+                list.innerHTML = "<li>No tasks found.</li>";
+            }
+
+            tasks.forEach(task => {
+                list.appendChild(renderTask(task));
+            });
+        });
+}
+
+function renderPaginationNumbers() {
+    document.getElementById("currentPageLabel").textContent = currentPage + " of " + totalPages;
+    document.getElementById("prevButton").disabled = !prevUrl;
+    document.getElementById("nextButton").disabled = !nextUrl;
+
+    const paginationDiv = document.getElementById("paginationNumbers");
+    paginationDiv.innerHTML = "";
+
+    for (let i = 1; i <= totalPages; i++) {
+        const button = document.createElement("button");
+        button.textContent = i;
+        button.style.marginRight = "6px";
+        button.style.marginTop = "10px";
+
+        if (i === currentPage) {
+            button.disabled = true;
+        }
+
+        button.onclick = function() {
+            getTasks(i);
+        };
+
+        paginationDiv.appendChild(button);
+    }
+}
+
+function createTask() {
+    const title = document.getElementById("title").value;
+    console.log('title:', title);
+    const description = document.getElementById("description").value;
+    console.log('description:', description);
+    const priority = document.getElementById("priority").value;
+    console.log('priority:', priority);
+
+    fetch(API_URL, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            title: title,
+            description: description,
+            priority: priority
+        })
+    })
+    .then(res => {
+        if (!res.ok) {
+            throw new Error("Failed to create task");
+        }
+        return res.json();
+    })
+    .then(() => {
+        document.getElementById("title").value = "";
+        document.getElementById("description").value = "";
+        getTasks(1);
+    })
+    .catch(error => {
+        console.error(error);
+    });
+}
+
+function deleteTask(id) {
+    fetch(API_URL + id + "/", {
+        method: "DELETE"
+    })
+    .then(() => {
+        getTasks(1);
+    });
+}
+
+function markComplete(id) {
+    fetch(API_URL + id + "/", {
+        method: "PATCH",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            status: "completed"
+        })
+    })
+    .then(() => {
+        getTasks(1);
+    });
+}
+
+getTasks(1);
+function applyFilters() {
+    getTasks(1); 
+}   
+
+function nextPage() {
+    if (nextUrl) {
+        const url = new URL(nextUrl);
+        const page = url.searchParams.get("page");
+        getTasks(page);
+    }
+}
+
+function prevPage() {
+    if (prevUrl) {
+        const url = new URL(prevUrl);
+        const page = url.searchParams.get("page");
+        getTasks(page);
+    }
+}
+function updateUI(data) {
+    nextUrl = data.next;
+    prevUrl = data.previous;
+
+    const list = document.getElementById("taskList");
+    list.innerHTML = "";
+
+    const tasks = data.results;
+
+    tasks.forEach(task => {
+        list.appendChild(renderTask(task));
+    });
+}
+</script>
+
+</body>
+</html>
