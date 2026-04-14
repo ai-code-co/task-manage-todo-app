@@ -15,9 +15,9 @@ from rest_framework.pagination import PageNumberPagination
 
 from rest_framework.decorators import action
 class TaskPagination(PageNumberPagination):
-    page_size = 5
+    page_size = 20
     page_size_query_param = 'page_size'
-    max_page_size = 10
+    max_page_size = 100
 
 def index(request):
     return render(request, 'index.html')
@@ -25,7 +25,7 @@ def index(request):
 class TaskViewSet(ModelViewSet):
     queryset = Task.objects.all().order_by("-created_at")
     serializer_class = TaskSerializer
-    pagination_class = TaskPagination
+    # pagination_class = TaskPagination
     # permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["status", "priority"]
@@ -132,3 +132,23 @@ class TaskViewSet(ModelViewSet):
             "created_count": len(tasks),
             "errors": errors
         }, status=status.HTTP_201_CREATED)
+    
+
+    @action(detail=False, methods=['post'], url_path='bulk-delete')
+    def bulk_delete(self, request):
+        ids = request.data.get('ids', [])
+
+        if not ids:
+            return Response({'error': 'No IDs provided'}, status=400)
+
+        tasks = Task.objects.filter(id__in=ids)
+
+        # Soft delete (same as your destroy)
+        for task in tasks:
+            task.is_deleted = True
+            task.deleted_at = now()
+            task.save()
+
+        return Response({
+            "deleted_count": tasks.count()
+        }, status=200)

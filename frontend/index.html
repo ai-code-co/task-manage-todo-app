@@ -18,7 +18,7 @@
                 </p>
             </section>
 
-            <aside class="panel hero-side">
+            <!-- <aside class="panel hero-side">
                 <div class="meta-label">Backend API</div>
                 <code id="apiBaseLabel">http://127.0.0.1:8000/api/tasks/</code>
                 <p class="small">Edit query params in the URL bar, refresh, or use browser back and forward to verify state.</p>
@@ -26,10 +26,12 @@
                     <button class="primary" type="button" id="refreshButton">Refresh Data</button>
                     <button class="ghost" type="button" id="resetAllButton">Reset URL State</button>
                 </div>
-            </aside>
+            </aside> -->
         </header>
 
         <main class="layout">
+
+            
             <section class="panel create-panel">
                 <div class="section-head">
                     <div>
@@ -99,7 +101,7 @@
                             <option value="high">High</option>
                         </select>
                     </label>
-                    <label>
+                    <!-- <label>
                         <span>Ordering</span>
                         <select id="ordering">
                             <option value="-created_at">Newest first</option>
@@ -111,15 +113,15 @@
                             <option value="-status">Status desc</option>
                             <option value="status">Status asc</option>
                         </select>
-                    </label>
-                    <label>
+                    </label> -->
+                    <!-- <label>
                         <span>Page size</span>
                         <input id="pageSize" type="number" min="1" max="10" step="1" value="5">
                     </label>
                     <label>
                         <span>Page</span>
                         <input id="pageNumber" type="number" min="1" step="1" value="1">
-                    </label>
+                    </label> -->
                     <div class="full actions">
                         <button class="primary" type="submit">Apply Query Params</button>
                         <button class="ghost" type="button" id="resetFiltersButton">Reset Filters</button>
@@ -129,28 +131,19 @@
                 <div class="chips" id="activeQueryChips"></div>
             </section>
 
-            <section class="panel summary-panel">
+           <section class="panel">
                 <div class="section-head">
-                    <div>
-                        <h2>Verification Snapshot</h2>
-                        <p class="small">Compare browser URL, API request URL, and the response payload in one place.</p>
-                    </div>
+                    <h2>Upload Tasks (CSV)</h2>
                 </div>
 
-                <div class="stats">
-                    <div class="stat"><span>Total</span><strong id="totalCount">0</strong></div>
-                    <div class="stat"><span>Page</span><strong id="pageSummary">1 / 1</strong></div>
-                    <div class="stat"><span>Page Size</span><strong id="pageSizeSummary">5</strong></div>
-                    <div class="stat"><span>Rows</span><strong id="rowsShown">0</strong></div>
+                <div class="actions">
+                    <input type="file" id="csvFile" accept=".csv">
+                    <button id="uploadCsvBtn" class="primary">Upload CSV</button>
                 </div>
 
-                <div class="request-box">
-                    <div class="meta-label">Browser URL</div>
-                    <code id="browserUrlPreview"></code>
-                    <div class="meta-label">API Request URL</div>
-                    <code id="requestUrlPreview"></code>
-                    <a id="openApiLink" href="http://127.0.0.1:8000/api/tasks/" target="_blank" rel="noreferrer">Open current API request</a>
-                </div>
+                <p class="small">
+                    Upload CSV with columns: <b>title, description, priority, status</b>
+                </p>
             </section>
 
             <section class="panel table-panel">
@@ -162,13 +155,15 @@
                     <div class="actions">
                         <button class="ghost" type="button" id="prevPageButton">Previous</button>
                         <button class="ghost" type="button" id="nextPageButton">Next</button>
+                        <button id="bulkDelete" class="danger">Delete Selected</button>                   
                     </div>
                 </div>
 
                 <div class="table-wrap">
                     <table>
                         <thead>
-                            <tr>
+                            <tr>           
+                                <th><input type="checkbox" id="selectAll"></th>
                                 <th>Task</th>
                                 <th>Status</th>
                                 <th>Priority</th>

@@ -145,7 +145,8 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 3,
+    'PAGE_SIZE': 20,
+    'max_page_size': 100
 }
 # LOGGING = {
 #     'version': 1,

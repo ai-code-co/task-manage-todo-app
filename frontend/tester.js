@@ -5,7 +5,7 @@ const DEFAULT_STATE = {
     priority: "",
     ordering: "-created_at",
     page: "1",
-    page_size: "5"
+    page_size: "20"
 };
 
 const VALID_STATUS = new Set(["", "pending", "completed"]);
@@ -28,23 +28,16 @@ const elements = {
     search: document.getElementById("search"),
     status: document.getElementById("statusFilter"),
     priority: document.getElementById("priorityFilter"),
-    ordering: document.getElementById("ordering"),
-    pageSize: document.getElementById("pageSize"),
-    pageNumber: document.getElementById("pageNumber"),
+    // ordering: document.getElementById("ordering"),
+    // pageSize: document.getElementById("pageSize"),
+    // pageNumber: document.getElementById("pageNumber"),
     createTitle: document.getElementById("createTitle"),
     createDescription: document.getElementById("createDescription"),
     createPriority: document.getElementById("createPriority"),
     createStatus: document.getElementById("createStatus"),
     createStatusLine: document.getElementById("createStatusLine"),
     activeQueryChips: document.getElementById("activeQueryChips"),
-    browserUrlPreview: document.getElementById("browserUrlPreview"),
-    requestUrlPreview: document.getElementById("requestUrlPreview"),
-    openApiLink: document.getElementById("openApiLink"),
-    totalCount: document.getElementById("totalCount"),
-    pageSummary: document.getElementById("pageSummary"),
-    pageSizeSummary: document.getElementById("pageSizeSummary"),
-    rowsShown: document.getElementById("rowsShown"),
-    rangeSummary: document.getElementById("rangeSummary"),
+    
     taskTableBody: document.getElementById("taskTableBody"),
     emptyState: document.getElementById("emptyState"),
     responsePreview: document.getElementById("responsePreview"),
@@ -56,8 +49,9 @@ const elements = {
     toast: document.getElementById("toast")
 };
 
-elements.apiBaseLabel.textContent = API_URL;
-
+if (elements.apiBaseLabel) {
+    elements.apiBaseLabel.textContent = API_URL;
+}
 let currentState = { ...DEFAULT_STATE };
 let lastPayload = { count: 0, next: null, previous: null, results: [] };
 let toastTimer = null;
@@ -77,7 +71,7 @@ function sanitizeState(raw) {
         priority: VALID_PRIORITY.has(raw.priority) ? raw.priority : DEFAULT_STATE.priority,
         ordering: VALID_ORDERING.has(raw.ordering) ? raw.ordering : DEFAULT_STATE.ordering,
         page: String(clampInteger(raw.page, 1, 9999, DEFAULT_STATE.page)),
-        page_size: String(clampInteger(raw.page_size, 1, 10, DEFAULT_STATE.page_size))
+        page_size: String(clampInteger(raw.page_size, 1, 100, DEFAULT_STATE.page_size))
     };
 }
 
@@ -89,8 +83,9 @@ function readStateFromUrl() {
         priority: params.get("priority") || "",
         ordering: params.get("ordering") || DEFAULT_STATE.ordering,
         page: params.get("page") || DEFAULT_STATE.page,
-        page_size: params.get("page_size") || DEFAULT_STATE.page_size
-    });
+        page_size: params.get("page_size") 
+            ? params.get("page_size") 
+            : DEFAULT_STATE.page_size    });
 }
 
 function buildSearchParams(state) {
@@ -115,9 +110,9 @@ function syncControls(state) {
     elements.search.value = state.search;
     elements.status.value = state.status;
     elements.priority.value = state.priority;
-    elements.ordering.value = state.ordering;
-    elements.pageSize.value = state.page_size;
-    elements.pageNumber.value = state.page;
+    // elements.ordering.value = state.ordering;
+    // elements.pageSize.value = state.page_size;
+    // elements.pageNumber.value = state.page;
 }
 
 function collectStateFromForm() {
@@ -125,9 +120,12 @@ function collectStateFromForm() {
         search: elements.search.value,
         status: elements.status.value,
         priority: elements.priority.value,
-        ordering: elements.ordering.value,
-        page: elements.pageNumber.value,
-        page_size: elements.pageSize.value
+        // ordering: elements.ordering.value,
+        // page: elements.pageNumber.value,
+        // page_size: elements.pageSize.value
+        ordering: "-created_at",   // default
+        page: "1",                 // always start from page 1
+        page_size: "20"             // fixed page size
     });
 }
 
@@ -184,6 +182,7 @@ function renderTasks(tasks) {
     tasks.forEach((task) => {
         const row = document.createElement("tr");
 
+
         const titleCell = document.createElement("td");
         titleCell.className = "title-cell";
         const title = document.createElement("div");
@@ -219,7 +218,16 @@ function renderTasks(tasks) {
 
         actionWrap.append(completeButton, deleteButton);
         actionsCell.appendChild(actionWrap);
-
+        
+        row.innerHTML = `
+        <td><input type="checkbox" class="taskCheckbox" value="${task.id}"></td>
+        <td>${task.title}</td>
+        <td>${task.status}</td>
+        <td>${task.priority}</td>
+        <td>
+            <button onclick="deleteTask(${task.id})">Delete</button>
+        </td>
+    `;
         row.append(
             titleCell,
             statusCell,
@@ -229,26 +237,11 @@ function renderTasks(tasks) {
             actionsCell
         );
         elements.taskTableBody.appendChild(row);
+        taskTableBody
     });
 }
 
-function updateSummary(payload, state) {
-    const tasks = Array.isArray(payload.results) ? payload.results : [];
-    const total = typeof payload.count === "number" ? payload.count : tasks.length;
-    const page = Number.parseInt(state.page, 10);
-    const pageSize = Number.parseInt(state.page_size, 10);
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
-    const start = tasks.length ? (page - 1) * pageSize + 1 : 0;
-    const end = tasks.length ? start + tasks.length - 1 : 0;
 
-    elements.totalCount.textContent = String(total);
-    elements.pageSummary.textContent = `${page} / ${totalPages}`;
-    elements.pageSizeSummary.textContent = String(pageSize);
-    elements.rowsShown.textContent = String(tasks.length);
-    elements.rangeSummary.textContent = tasks.length ? `Showing ${start}-${end} of ${total}` : "Showing 0 results";
-    elements.prevPageButton.disabled = !payload.previous;
-    elements.nextPageButton.disabled = !payload.next;
-}
 
 function updateRequestPreview(state) {
     const query = buildSearchParams(state).toString();
@@ -260,8 +253,9 @@ function updateRequestPreview(state) {
 }
 
 function setLoading(isLoading) {
-    elements.refreshButton.classList.toggle("loading", isLoading);
-}
+    if (elements.refreshButton) {
+        elements.refreshButton.classList.toggle("loading", isLoading);
+    }}
 
 async function readResponseBody(response) {
     const type = response.headers.get("content-type") || "";
@@ -286,8 +280,13 @@ async function loadTasks(state, historyMode) {
     currentState = sanitizeState(state);
     syncControls(currentState);
     writeStateToUrl(currentState, historyMode);
+if (elements.activeQueryChips) {
     updateQueryChips(currentState);
+}
+
+if (elements.browserUrlPreview) {
     updateRequestPreview(currentState);
+}
     setLoading(true);
 
     const requestUrl = `${API_URL}?${buildSearchParams(currentState).toString()}`;
@@ -299,7 +298,7 @@ async function loadTasks(state, historyMode) {
 
         lastPayload = payload;
         renderTasks(payload.results || []);
-        updateSummary(payload, currentState);
+    
         elements.responsePreview.textContent = JSON.stringify(payload, null, 2);
     } catch (error) {
         lastPayload = { count: 0, next: null, previous: null, results: [] };
@@ -399,24 +398,116 @@ elements.nextPageButton.addEventListener("click", () => {
     loadTasks({ ...currentState, page: String(Number.parseInt(currentState.page, 10) + 1) }, "push");
 });
 
-elements.refreshButton.addEventListener("click", () => {
-    loadTasks(currentState, "replace");
-});
+// elements.refreshButton.addEventListener("click", () => {
+//     loadTasks(currentState, "replace");
+// });
 
 elements.resetFiltersButton.addEventListener("click", () => {
     loadTasks({ ...DEFAULT_STATE }, "push");
 });
+if (elements.refreshButton) {
+    elements.refreshButton.addEventListener("click", () => {
+        loadTasks(currentState, "replace");
+    });
+}
 
-elements.resetAllButton.addEventListener("click", () => {
-    elements.createTaskForm.reset();
-    elements.createPriority.value = "medium";
-    elements.createStatus.value = "pending";
-    setCreateStatus("", false);
-    loadTasks({ ...DEFAULT_STATE }, "push");
-});
+if (elements.resetAllButton) {
+    elements.resetAllButton.addEventListener("click", () => {
+        elements.createTaskForm.reset();
+        elements.createPriority.value = "medium";
+        elements.createStatus.value = "pending";
+        setCreateStatus("", false);
+        loadTasks({ ...DEFAULT_STATE }, "push");
+    });
+}
+
+// elements.resetAllButton.addEventListener("click", () => {
+//     elements.createTaskForm.reset();
+//     elements.createPriority.value = "medium";
+//     elements.createStatus.value = "pending";
+//     setCreateStatus("", false);
+//     loadTasks({ ...DEFAULT_STATE }, "push");
+// });
 
 window.addEventListener("popstate", () => {
     loadTasks(readStateFromUrl(), "skip");
 });
 
-loadTasks(readStateFromUrl(), "replace");
+const initialState = readStateFromUrl();
+
+// If no query params → use default clean state
+if (!window.location.search) {
+    loadTasks(DEFAULT_STATE, "replace");
+} else {
+    loadTasks(initialState, "replace");
+}
+
+
+document.getElementById("selectAll").addEventListener("change", (e) => {
+    document.querySelectorAll(".taskCheckbox").forEach(cb => {
+        cb.checked = e.target.checked;
+    });
+});
+
+function getSelectedTaskIds() {
+    return Array.from(document.querySelectorAll(".taskCheckbox:checked"))
+        .map(cb => cb.value);
+}
+
+document.getElementById("bulkDelete").addEventListener("click", async () => {
+    const ids = getSelectedTaskIds();
+
+    if (ids.length === 0) {
+        alert("Select at least one task");
+        return;
+    }
+
+    try {
+        await fetch(API_URL + "bulk-delete/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ ids })
+        });
+
+        alert("Tasks deleted successfully");
+
+        loadTasks(currentState, "replace");
+
+    } catch (error) {
+        alert("Bulk delete failed");
+    }
+});
+
+document.getElementById("uploadCsvBtn").addEventListener("click", async () => {
+    const fileInput = document.getElementById("csvFile");
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert("Please select a CSV file");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+        const response = await fetch(API_URL + "upload-csv/", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+
+        alert(`Uploaded: ${data.created_count} tasks`);
+
+        // Refresh list
+        loadTasks(currentState, "replace");
+
+        fileInput.value = ""; // reset input
+
+    } catch (error) {
+        alert("Upload failed");
+    }
+});
